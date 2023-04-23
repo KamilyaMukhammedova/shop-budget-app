@@ -38,12 +38,16 @@ const TableContent = styled.td<{ color?: string, weight?: string }>`
 
 const BudgetInput = styled.input`
   border: none;
+  outline: none;
   width: 100%;
 `;
 
 const Table: React.FC<IProps> = ({data}) => {
-  const createBudgetState = () => {
-    return data.map(item => {
+  const [totalOfTotals, setTotalOfTotals] = useState(0);
+  const [budget, setBudget] = useState<Budget[]>([]);
+
+  useEffect(() => {
+    const budgetData = data.map(item => {
       return {
         ...item,
         months: item.months.map(month => {
@@ -52,18 +56,15 @@ const Table: React.FC<IProps> = ({data}) => {
             budget: month.value
           }
         }),
-        totalInShop: 0
+        totalInShop: item.months.reduce((acc, month) => acc + month.value, 0)
       }
     });
-  };
 
-  const [totalOfTotals, setTotalOfTotals] = useState(0);
-  const [budget, setBudget] = useState<Budget[]>([]);
+    const totalOfTotalsSum = budgetData.reduce((acc, store) => acc + store.totalInShop, 0);
 
-  useEffect(() => {
-    const budgetData = createBudgetState();
     setBudget(budgetData);
-  }, []);
+    setTotalOfTotals(totalOfTotalsSum);
+  }, [data]);
 
   const onBudgetChange = (event: React.ChangeEvent<HTMLInputElement>, storeIndex: number, monthIndex: number) => {
     const budgetCopy = budget.map((store, sIndex) => {
@@ -83,6 +84,25 @@ const Table: React.FC<IProps> = ({data}) => {
     });
 
     setBudget(budgetCopy);
+  };
+
+  const onBlur = (event: React.FocusEvent<HTMLInputElement>, storeIndex: number) => {
+    const budgetCopy = budget.map((store, sIndex) => {
+      if(sIndex === storeIndex) {
+        return {
+          ...store,
+          totalInShop: store.months.reduce((acc, month) => acc + month.budget, 0)
+        };
+      }
+
+      return store;
+    });
+
+    setBudget(budgetCopy);
+
+    const totalOfTotalsSum = budgetCopy.reduce((acc, store) => acc + store.totalInShop, 0);
+
+    setTotalOfTotals(totalOfTotalsSum);
   };
 
   const renderHeader = () => {
@@ -109,10 +129,11 @@ const Table: React.FC<IProps> = ({data}) => {
               value={budget[storeIndex].months[monthIndex].budget}
               name={month.id}
               onChange={(event) => onBudgetChange(event, storeIndex, monthIndex)}
+              onBlur={(event) => onBlur(event, storeIndex)}
             />
           </TableContent>
         ))}
-        <TableContent color={'red'}>total 0</TableContent>
+        <TableContent color={'red'}>{budget[storeIndex].totalInShop}</TableContent>
       </tr>
     ));
   };
@@ -124,7 +145,7 @@ const Table: React.FC<IProps> = ({data}) => {
         {data[0].months.map((month) => (
           <TableContent key={'total' + month.id} color={'red'}>0</TableContent>
         ))}
-        <TableContent color={'red'} weight={'bold'}>total of totals</TableContent>
+        <TableContent color={'red'} weight={'bold'}>{totalOfTotals}</TableContent>
       </tr>
     );
   };
@@ -141,3 +162,4 @@ const Table: React.FC<IProps> = ({data}) => {
 };
 
 export default Table;
+
