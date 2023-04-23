@@ -6,7 +6,7 @@ interface Budget {
   store: StoreData;
   months: {
     name: string,
-    value: number
+    budget: number
   }[],
   totalInShop: number
 }
@@ -49,7 +49,7 @@ const Table: React.FC<IProps> = ({data}) => {
         months: item.months.map(month => {
           return {
             name: month.id,
-            value: month.value
+            budget: month.value
           }
         }),
         totalInShop: 0
@@ -61,8 +61,29 @@ const Table: React.FC<IProps> = ({data}) => {
   const [budget, setBudget] = useState<Budget[]>([]);
 
   useEffect(() => {
-    setBudget(createBudgetState());
+    const budgetData = createBudgetState();
+    setBudget(budgetData);
   }, []);
+
+  const onBudgetChange = (event: React.ChangeEvent<HTMLInputElement>, storeIndex: number, monthIndex: number) => {
+    const budgetCopy = budget.map((store, sIndex) => {
+      return {
+        ...store,
+        months: store.months.map((month, mIndex) => {
+          if (sIndex === storeIndex && mIndex === monthIndex) {
+            return {
+              ...month,
+              budget: +event.target.value
+            }
+          }
+
+          return month;
+        })
+      };
+    });
+
+    setBudget(budgetCopy);
+  };
 
   const renderHeader = () => {
     return (
@@ -80,9 +101,15 @@ const Table: React.FC<IProps> = ({data}) => {
     return data.map((store, storeIndex) => (
       <tr key={store.store.id}>
         <TableContent color={'green'}>{store.store.name}</TableContent>
-        {store.months.map((month, index) => (
+        {store.months.map((month, monthIndex) => (
           <TableContent key={month.id}>
-            <BudgetInput type="number" value={budget[storeIndex].months[index].value}/>
+            <BudgetInput
+              type="number"
+              min={0}
+              value={budget[storeIndex].months[monthIndex].budget}
+              name={month.id}
+              onChange={(event) => onBudgetChange(event, storeIndex, monthIndex)}
+            />
           </TableContent>
         ))}
         <TableContent color={'red'}>total 0</TableContent>
@@ -106,7 +133,7 @@ const Table: React.FC<IProps> = ({data}) => {
     <TableContainer>
       <thead>{renderHeader()}</thead>
       <tbody>
-      {budget && renderRows()}
+      {budget.length > 0 && renderRows()}
       {renderTotalRow()}
       </tbody>
     </TableContainer>
