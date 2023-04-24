@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import { MonthData, TableData, TableDataExpanded, TableInput, TotalMonths } from '../../types';
 import styled from 'styled-components';
 
@@ -148,7 +148,7 @@ const Table: React.FC<IProps> = ({mockData}) => {
     });
   }, [storesData]);
 
-  const renderHeader = () => {
+  const renderHeader = useMemo(() => {
     return (
       <tr>
         <TableHeader>Store name</TableHeader>
@@ -158,7 +158,7 @@ const Table: React.FC<IProps> = ({mockData}) => {
         <TableHeader>Total</TableHeader>
       </tr>
     );
-  };
+  }, [mockData]);
 
   const renderRows = () => {
     return mockData.map((store, storeIndex) => (
@@ -181,7 +181,7 @@ const Table: React.FC<IProps> = ({mockData}) => {
     ));
   };
 
-  const renderTotalRow = () => {
+  const renderTotalRow = useMemo(() => {
     return (
       <BottomTr>
         <TableContent color={'#e4f1fe'} backgroundColor={'#34495e'}>
@@ -197,14 +197,14 @@ const Table: React.FC<IProps> = ({mockData}) => {
         </TableContent>
       </BottomTr>
     );
-  };
+  }, [totalOfTotalsSum, totalMonthsSum, mockData]);
 
   return (
     <TableContainer>
-      <thead>{renderHeader()}</thead>
+      <thead>{renderHeader}</thead>
       <tbody>
       {storesData.length > 0 && renderRows()}
-      {renderTotalRow()}
+      {renderTotalRow}
       </tbody>
     </TableContainer>
   );
