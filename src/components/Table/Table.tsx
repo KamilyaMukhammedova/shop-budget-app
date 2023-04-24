@@ -1,39 +1,42 @@
-import React, {useEffect, useState} from 'react';
-import {StoreData, TableData} from '../../../types';
+import React, { useCallback, useEffect, useState } from 'react';
+import { MonthData, TableData, TableDataExpanded, TableInput, TotalMonths } from '../../types';
 import styled from 'styled-components';
 
-interface Budget {
-  store: StoreData;
-  months: {
-    name: string,
-    budget: number
-  }[],
-  totalInShop: number
-}
-
 interface IProps {
-  data: TableData[];
+  mockData: TableData[];
 }
 
 const TableContainer = styled.table`
   border-collapse: collapse;
-  max-width: 80%;
   margin: 0 auto;
   table-layout: fixed;
+  position: relative;
 `;
 
 const TableHeader = styled.th`
   border: 1px solid #ddd;
   padding: 15px 8px;
   text-align: left;
-  color: red;
+  color: #8dc6ff;
+  background: #e4f1fe;
+  position: sticky;
+  top: 0;
+  text-transform: uppercase;
+  box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.4);
 `;
 
-const TableContent = styled.td<{ color?: string, weight?: string }>`
+const TableContent = styled.td<TableInput>`
   border: 1px solid #ddd;
   padding: 15px 8px;
   color: ${props => props.color};
   font-weight: ${props => props.weight};
+  background-color: ${props => props.backgroundColor};
+`;
+
+const BottomTr = styled.tr`
+  position: sticky;
+  bottom: 0;
+  font-size: 18px;
 `;
 
 const BudgetInput = styled.input`
@@ -42,39 +45,63 @@ const BudgetInput = styled.input`
   width: 100%;
 `;
 
-const Table: React.FC<IProps> = ({data}) => {
-  const [totalOfTotals, setTotalOfTotals] = useState(0);
-  const [budget, setBudget] = useState<Budget[]>([]);
+const Table: React.FC<IProps> = ({mockData}) => {
+  const [totalOfTotalsSum, setTotalOfTotalsSum] = useState(0);
+  const [storesData, setStoresData] = useState<TableDataExpanded[]>([]);
+  const [totalMonthsSum, setTotalMonthsSum] = useState<TotalMonths>({});
 
   useEffect(() => {
-    const budgetData = data.map(item => {
+    const data = mockData.map(store => {
       return {
-        ...item,
-        months: item.months.map(month => {
-          return {
-            name: month.id,
-            budget: month.value
-          }
-        }),
-        totalInShop: item.months.reduce((acc, month) => acc + month.value, 0)
+        ...store,
+        totalInShop: store.months.reduce((acc, month) => acc + month.value, 0),
       }
     });
 
-    const totalOfTotalsSum = budgetData.reduce((acc, store) => acc + store.totalInShop, 0);
+    const totalOfTotalsSum = data.reduce((acc, store) => acc + store.totalInShop, 0);
 
-    setBudget(budgetData);
-    setTotalOfTotals(totalOfTotalsSum);
-  }, [data]);
+    const monthsInitialObj = {
+      JAN: 0,
+      FEB: 0,
+      MAR: 0,
+      APR: 0,
+      MAY: 0,
+      JUN: 0,
+      JUL: 0,
+      AUG: 0,
+      SEP: 0,
+      OCT: 0,
+      NOV: 0,
+      DEC: 0
+    };
 
-  const onBudgetChange = (event: React.ChangeEvent<HTMLInputElement>, storeIndex: number, monthIndex: number) => {
-    const budgetCopy = budget.map((store, sIndex) => {
+    Object.keys(monthsInitialObj).forEach(month => {
+      const monthsArray: MonthData[] = [];
+      data.forEach(store => {
+        const targetMonth = store.months.find(storeMonth => storeMonth.name === month);
+        if (targetMonth) {
+          monthsArray.push(targetMonth);
+        }
+      });
+      monthsInitialObj[month as keyof typeof monthsInitialObj] =
+        monthsArray.reduce((acc, month) => acc + month.value, 0)
+      ;
+    });
+
+    setStoresData(data);
+    setTotalMonthsSum(monthsInitialObj);
+    setTotalOfTotalsSum(totalOfTotalsSum);
+  }, [mockData]);
+
+  const onBudgetChange = useCallback((event: React.ChangeEvent<HTMLInputElement>, storeIndex: number, monthIndex: number) => {
+    const storesDataCopy = storesData.map((store, sIndex) => {
       return {
         ...store,
         months: store.months.map((month, mIndex) => {
           if (sIndex === storeIndex && mIndex === monthIndex) {
             return {
               ...month,
-              budget: +event.target.value
+              value: +event.target.value
             }
           }
 
@@ -83,70 +110,92 @@ const Table: React.FC<IProps> = ({data}) => {
       };
     });
 
-    setBudget(budgetCopy);
-  };
+    setStoresData(storesDataCopy);
+  }, [storesData]);
 
-  const onBlur = (event: React.FocusEvent<HTMLInputElement>, storeIndex: number) => {
-    const budgetCopy = budget.map((store, sIndex) => {
-      if(sIndex === storeIndex) {
+  const onBlur = useCallback((event: React.FocusEvent<HTMLInputElement>, storeIndex: number) => {
+    const storesDataCopy = storesData.map((store, sIndex) => {
+      if (sIndex === storeIndex) {
         return {
           ...store,
-          totalInShop: store.months.reduce((acc, month) => acc + month.budget, 0)
+          totalInShop: store.months.reduce((acc, month) => acc + month.value, 0)
         };
       }
 
       return store;
     });
 
-    setBudget(budgetCopy);
+    setStoresData(storesDataCopy);
 
-    const totalOfTotalsSum = budgetCopy.reduce((acc, store) => acc + store.totalInShop, 0);
+    const totalOfTotalsSum = storesDataCopy.reduce((acc, store) => acc + store.totalInShop, 0);
 
-    setTotalOfTotals(totalOfTotalsSum);
-  };
+    setTotalOfTotalsSum(totalOfTotalsSum);
+
+    let monthsSum = 0;
+
+    storesDataCopy.forEach(store => {
+      const targetMonth = store.months.find(month => month.name === event.target.name);
+      if (targetMonth) {
+        monthsSum += targetMonth.value;
+      }
+    });
+
+    setTotalMonthsSum(prevState => {
+      return {
+        ...prevState,
+        [event.target.name]: monthsSum
+      }
+    });
+  }, [storesData]);
 
   const renderHeader = () => {
     return (
       <tr>
-        <TableHeader>Store</TableHeader>
-        {data[0].months.map((month) => (
+        <TableHeader>Store name</TableHeader>
+        {mockData[0].months.map((month) => (
           <TableHeader key={month.id}>{month.name}</TableHeader>
         ))}
-        <TableHeader>Total in shop</TableHeader>
+        <TableHeader>Total</TableHeader>
       </tr>
     );
   };
 
   const renderRows = () => {
-    return data.map((store, storeIndex) => (
+    return mockData.map((store, storeIndex) => (
       <tr key={store.store.id}>
-        <TableContent color={'green'}>{store.store.name}</TableContent>
+        <TableContent color={'#8dc6ff'}>{store.store.name}</TableContent>
         {store.months.map((month, monthIndex) => (
           <TableContent key={month.id}>
             <BudgetInput
               type="number"
               min={0}
-              value={budget[storeIndex].months[monthIndex].budget}
-              name={month.id}
+              value={storesData[storeIndex].months[monthIndex].value}
+              name={month.name}
               onChange={(event) => onBudgetChange(event, storeIndex, monthIndex)}
               onBlur={(event) => onBlur(event, storeIndex)}
             />
           </TableContent>
         ))}
-        <TableContent color={'red'}>{budget[storeIndex].totalInShop}</TableContent>
+        <TableContent color={'#8dc6ff'}>{storesData[storeIndex].totalInShop}</TableContent>
       </tr>
     ));
   };
 
   const renderTotalRow = () => {
     return (
-      <tr>
-        <TableContent color={'red'}>Total Month</TableContent>
-        {data[0].months.map((month) => (
-          <TableContent key={'total' + month.id} color={'red'}>0</TableContent>
+      <BottomTr>
+        <TableContent color={'#e4f1fe'} backgroundColor={'#34495e'}>
+          Total Month
+        </TableContent>
+        {mockData[0].months.map((month) => (
+          <TableContent key={'total' + month.name} color={'#e4f1fe'} backgroundColor={'#34495e'}>
+            {totalMonthsSum[month.name as keyof typeof totalMonthsSum]}
+          </TableContent>
         ))}
-        <TableContent color={'red'} weight={'bold'}>{totalOfTotals}</TableContent>
-      </tr>
+        <TableContent color={'#00fff5'} weight={'bold'} backgroundColor={'#34495e'}>
+          {totalOfTotalsSum}
+        </TableContent>
+      </BottomTr>
     );
   };
 
@@ -154,7 +203,7 @@ const Table: React.FC<IProps> = ({data}) => {
     <TableContainer>
       <thead>{renderHeader()}</thead>
       <tbody>
-      {budget.length > 0 && renderRows()}
+      {storesData.length > 0 && renderRows()}
       {renderTotalRow()}
       </tbody>
     </TableContainer>
